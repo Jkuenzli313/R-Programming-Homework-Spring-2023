@@ -1,0 +1,130 @@
+# read in directly from website: 
+trees <- read.csv('https://raw.githubusercontent.com/dmcglinn/quant_methods/gh-pages/data/treedata_subset.csv')
+# or download and import locally
+trees <- read.csv('./data/treedata_subset.csv')
+
+install.packages('car')
+# come back to this later
+library(car)
+Anova(trees, type=3)
+
+# we wish to model species cover across all sampled plots
+# create site x sp matrix for two species 
+sp_cov = with(trees, tapply(cover, list(plotID, spcode), 
+                            function(x) round(mean(x))))
+sp_cov = ifelse(is.na(sp_cov), 0, sp_cov)
+sp_cov = data.frame(plotID = row.names(sp_cov), sp_cov)
+# create environmental matrix
+cols_to_select = c('elev', 'tci', 'streamdist', 'disturb', 'beers', 'cover')
+env = aggregate(trees[ , cols_to_select], by = list(trees$plotID), 
+                function(x) x[1])
+names(env)[1] = 'plotID'
+# merge species and enviornmental matrices
+site_dat = merge(sp_cov, env, by='plotID')
+# subset species of interest
+abies = site_dat[ , c('ABIEFRA', cols_to_select)]
+acer  = site_dat[ , c('ACERRUB', cols_to_select)]
+names(abies)[1] = 'cover'
+names(acer)[1] = 'cover'
+
+# Acer poisson data
+
+acer_poi = glm(cover ~ ., data = acer, 
+               family='poisson')
+
+# Abies poisson data
+
+abies_poi = glm(cover ~ ., data = abies, 
+               family='poisson')
+
+# pseudocode 
+pseudo_r2 = function(abies_poi) {
+  1 -  abies_poi$deviance / abies_poi$null.deviance
+}
+
+# plots!
+head(abies)
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+  par(usr = c(0, 1, 0, 1))
+  r <- abs(cor(x, y))
+  txt <- format(c(r, 0.123456789), digits = digits)[1]
+  txt <- paste0(prefix, txt)
+  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+  text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+head(abies)
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+  par(usr = c(0, 1, 0, 1))
+  r <- abs(cor(x, y))
+  txt <- format(c(r, 0.123456789), digits = digits)[1]
+  txt <- paste0(prefix, txt)
+  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+  text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+pairs(~ cover + elev + tci + streamdist + beers,
+      data = abies, upper.panel = panel.smooth, lower.panel = panel.smooth)
+boxplot(cover ~ disturb, data = abies)
+abies_mod <- lm(cover ~ ., data = abies)
+
+Anova(update(abies_mod, . ~ . - 1), type = 3)
+
+head(acer)
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+  par(usr = c(0, 1, 0, 1))
+  r <- abs(cor(x, y))
+  txt <- format(c(r, 0.123456789), digits = digits)[1]
+  txt <- paste0(prefix, txt)
+  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+  text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+pairs(~ cover + elev + tci + streamdist + beers,
+        data = acer, upper.panel = panel.smooth, lower.panel = panel.smooth)
+boxplot(cover ~ disturb, data = acer)
+acer_mod <- lm(cover ~ ., data = acer)
+
+Anova(update(acer_mod, . ~ . - 1), type = 3)
+
+summary(acer_mod)
+summary(abies_mod)
+
+pairs(~ cover + elev + tci + streamdist + beers,
+      data = abies, upper.panel = panel.smooth, lower.panel = panel.smooth)
+
+pairs(~ cols_to_select,
+      data = abies, upper.panel = panel.smooth, lower.panel = panel.smooth)
+
+plot(abies, cols_to_select,
+     upper.panel = panel.smooth, lower.panel = panel.smooth)
+
+plot(acer, cols_to_select,
+     upper.panel = panel.smooth, lower.panel = panel.smooth)
+
+plot(abies, cols_to_select,
+     upper.panel = panel.smooth, lower.panel = panel.smooth)
+
+par(mfrow = c(2,2))
+plot(acer_mod)
+par(mfrow = c(2,2))
+plot(abies_mod)
+
+
+
+plot(cover ~ elev, data = abies, 
+     xlab = 'elevation', ylab = 'cover')
+
+plot(cover ~ elev, data = acer, 
+     xlab = 'elevation', ylab = 'cover')
+plot(lm(cover ~ elev, data = acer_mod))
+
+#1 a. The exploratory model for abies does appear to explain cover well, whereas the model for acer does not appear to explain cover well. 
+#1 b. Elevation and disturbance appear to be the most important variables for both species.
+#1 c. For acer: There does not appear to be homoscedasticity, however the data appears to be normally distributed. There are no points that fall within Cook's distance, suggesting that there are no outliers that are influencing the data. For abies, it does not appear that there is homoscedasticity and the data appears to not be normally distributed with a large number of data falling outside the line. There are no points that fall within Cook's distance, however, data point 546 is close to the line and should be considered. 
+#1 d. It appears that the model better explains variance in the abies species. 
+#2 Changing the error distribution lowered the amount of standard error in the model for each category. 
+#3 We can conclude that disturbance and elevation both have significanat impacts on the richness of both acer and abies species. TCI also appeared to be significant for the acer species but not for the abies species. 
+
