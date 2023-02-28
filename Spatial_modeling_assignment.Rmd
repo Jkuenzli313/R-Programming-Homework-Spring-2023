@@ -1,0 +1,186 @@
+---
+title: "Spatial_modeling_assignment"
+output: html_document
+date: "2023-02-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(vegan)
+data(BCI)
+## UTM Coordinates (in metres)
+BCI_xy = data.frame(x = rep(seq(625754, 626654, by=100), each=5), 
+                    y = rep(seq(1011569,  1011969, by=100), len=50))
+
+```
+
+1) Examine if there is evidence of spatial dependence in a rare and a common species in the BCI tree dataset
+
+
+```{r}
+library(vegan)
+
+head(BCI)
+
+head(BCI_xy)
+
+dim(BCI)
+dim(BCI_xy)
+
+summary(BCI)
+
+data(BCI)
+
+cols_to_select <- (colSums(BCI))
+
+cols_to_select
+
+summary(cols_to_select)
+
+
+
+
+```
+
+1.) Answer: It appears that there is spatial dependence within species T. pallida (common sp.) and F. obtusifolia. 
+
+2.) Build two generalized linear models to predict the abundance of the species Drypetes standleyi using the abundance of other tree species in the study site. Specifically examine the following species as predictor variables:
+
+```{r}
+
+sp_id_d.stand <- BCI[1:50, 'Drypetes.standleyi']
+
+sp_ids_b <- BCI[1:50, c('Cordia.lasiocalyx', 'Hirtella.triandra',
+           'Picramnia.latifolia', 'Quassia.amara',
+           'Tabernaemontana.arborea', 'Trattinnickia.aspera', 
+           'Xylopia.macrantha')]
+
+
+sp_ids_all <- BCI[1:50, c('Cordia.lasiocalyx', 'Drypetes.standleyi', 'Hirtella.triandra',
+           'Picramnia.latifolia', 'Quassia.amara',
+           'Tabernaemontana.arborea', 'Trattinnickia.aspera', 
+           'Xylopia.macrantha')]
+sp_id_d.stand <- BCI[1:50, 'Drypetes.standleyi']
+
+sp_id_c.lasi <- BCI[1:50, 'Cordia.lasiocalyx']
+sp_id_h.tria <- BCI[1:50, 'Hirtella.triandra']
+sp_id_p.lati <- BCI[1:50, 'Picramnia.latifolia']
+sp_id_q.amara <- BCI[1:50, 'Quassia.amara']
+sp_id_t.arbor <- BCI[1:50, 'Tabernaemontana.arborea']
+sp_id_t.asp <- BCI[1:50, 'Trattinnickia.aspera']
+sp_id_x.mac <- BCI[1:50, 'Xylopia.macrantha']
+summary(sp_id_d.stand)
+summary(sp_ids_b)
+
+boxplot(sp_id_d.stand,
+     xlab='Drypetes standleyi', ylab='abundance')
+
+boxplot(sp_id_q.amara,
+        xlab='Quassia amara', ylab='abundance')
+
+boxplot(sp_ids_b,
+        xlab='sp_ids', ylab='abundance')
+
+mod_1_predict <- gls(sp_id_d.stand ~ sp_id_q.amara, data = BCI_xy)
+
+summary(mod_1_predict)
+
+mod_all_lm <- lm(formula = sp_id_d.stand ~ sp_id_c.lasi + sp_id_h.tria + sp_id_p.lati + sp_id_q.amara + sp_id_t.arbor + sp_id_t.asp + sp_id_x.mac)
+
+
+mod_all_predict <- glm(formula = sp_id_d.stand ~ sp_id_c.lasi + sp_id_h.tria + sp_id_p.lati + sp_id_q.amara + sp_id_t.arbor + sp_id_t.asp + sp_id_x.mac)
+
+summary(mod_all_lm)
+summary(mod_all_predict)
+
+
+
+
+
+
+```
+
+3. Using a variogram to examine spatial dependence comparing D. standleyi and Q. amara:
+
+```{r}
+
+library(nlme)
+
+mod_1_predict <- gls(sp_id_d.stand ~ sp_id_q.amara, data = BCI_xy)
+
+plot(Variogram(mod_1_predict, form =~ x + y))
+
+maxBCI <- max(BCI) / 2
+
+
+res_1 <- residuals(mod_1_predict)
+
+res_var_1 <- dist(res)^2 * 0.5
+
+plot(dist(BCI_xy[, c('x', 'y')]), res_var_1)
+lines(lowess(dist(BCI_xy[, c('x', 'y')]), res_var_1), col='red', lwd=2)
+abline(v = maxBCI, col='red', lwd=3, lty=2)
+
+mod_1 <- update(mod_1_predict, corr=corExp(form=~x + y)) 
+
+plot(Variogram(mod_1, maxDist = maxBCI))
+plot(Variogram(mod_1, resType='normalized', maxDist = maxBCI))
+
+mod1_nug <- update(mod_1, corr=corExp(c(0.5, 0.1), form=~x + y, nugget=T))
+
+summary(mod1_nug)
+
+plot(Variogram(mod1_nug, maxDist = maxBCI))
+
+anova(mod_1_predict, mod_1, mod1_nug, test = F)
+
+
+```
+3. Answer: 
+- Including the spatial error did not appear to have a large impact on the coefficients. The value between updated value and the original model had decreased in significance, yet was still considered to be significant in comparison. 
+- According to the annova, the nuggets did not improve the model fit.
+- The spatial error did not appear to improve the model. This was mostly likely due to the fact that the distribution of the tree species was not dependent on the distribution of another. 
+
+4. Using a variogram to examine spatial dependence comparing D. standleyi and all other species:
+
+```{r}
+
+library(nlme)
+
+mod_all_predict <- gls(sp_id_d.stand ~ sp_id_c.lasi + sp_id_h.tria + sp_id_p.lati + sp_id_q.amara + sp_id_t.arbor + sp_id_t.asp + sp_id_x.mac, data = BCI_xy)
+
+plot(Variogram(mod_all_predict, form =~ x + y))
+
+res_2 <- residuals(mod_all_predict)
+res_var_2 <- dist(res)^2 * 0.5
+
+plot(dist(BCI_xy[, c('x', 'y')]), res_var_2)
+lines(lowess(dist(BCI_xy[, c('x', 'y')]), res_var_2), col='red', lwd=2)
+abline(v = maxBCI, col='red', lwd=3, lty=2)
+
+mod_all <- update(mod_all_predict, corr=corExp(form=~x + y))
+
+plot(Variogram(mod_all, maxDist = maxBCI))
+plot(Variogram(mod_all, resType = 'normalized', maxDist = maxBCI))
+
+mod_all_nug <- update(mod_all, corr=corExp(c(0.5, 0.1), form=~x + y, nugget = T))
+
+summary(mod_all_nug)
+
+plot(Variogram(mod_all_nug, maxDist = maxBCI))
+
+anova(mod_all_predict, mod_all, mod_all_nug, test = F)
+
+
+
+
+
+
+
+```
+
+4. Answer:
+- Including the spatial error did appear to have a large impact on the coefficients. Certain species that were not initially significant, became so once spatial error was included. 
+- According to the anova, the nuggets did not improve the model fit. 
+- The spatial error did not appear to improve the model. This was mostly likely due to the fact that the distribution of the tree species was not dependent on the distribution of another.
