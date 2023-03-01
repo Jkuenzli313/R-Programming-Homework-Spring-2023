@@ -1,0 +1,89 @@
+---
+title: "Multivariate_Assignment"
+author: Jake Kuenzli
+output: html_document
+date: "2023-02-14"
+---
+Set up for assignment:
+```{r}
+
+data(dune.env)
+data(dune.env)
+?dune
+
+```
+
+1. Conduct an indirect ordination on the dune plant community. Specifically, visually examine a NMDS plot using the bray-curtis distance metric. Below is some code to help you develop a potential plot that emphasizes the role of the environmental variable “Moisture”. Describe how you interpret the graphic. What is the goal of creating such a plot? Does this analysis suggest any interesting findings with respect to the dune vegetation?
+
+```{r}
+dune_mds <- metaMDS(dune)
+
+
+plot(dune_mds, type='n')
+ text(dune_mds, 'sp', cex=.5)
+ # generate vector of colors 
+ color_vect = rev(terrain.colors(6))[-1]
+ points(dune_mds, 'sites', pch=19, 
+        col=color_vect[dune.env$Moisture])
+ legend('topright', paste("Moisture =", 1:5, sep=''), 
+        col=color_vect, pch=19)
+
+
+ 
+```
+1. Answer:
+- The green dots that signify the higher moisture levels are skewed primarily to the left, while the lower moisture species are found primarily on the righ side of the plot. The goal of creating this plot is to analyze a number of different environmental factors, all while comparing them to moisture. These findings suggest that moisture could drive the distribution of some dune species. However, more in-depth analyses needs to be done to determine whether or not it is significant. 
+
+2. Carry out a direct ordination using CCA in order to test any potential hypotheses that you developed after examining the MDS plot. Specifically, carry out a test of the entire model (i.e., including all constrained axes) and also carry out tests at the scale of individual explanatory variables you included in your model if you included more than one variable. Plot your results.
+
+```{r}
+cca_dune_moist <- cca(dune ~ Moisture, data=dune.env)
+cca_dune_A1 <- cca(dune ~ A1, data=dune.env)
+cca_dune_mng <- cca(dune ~ Management, data=dune.env)
+cca_dune_use <- cca(dune ~ Use, data=dune.env)
+cca_dune_man <- cca(dune ~ Manure, data=dune.env)
+
+summary(cca_dune_moist)
+plot(cca_dune_moist)
+RsquareAdj(cca_dune_moist, 100)
+anova(cca_dune_moist)
+
+summary(cca_dune_A1)
+plot(cca_dune_A1)
+RsquareAdj(cca_dune_A1, 100)
+anova(cca_dune_A1)
+
+summary(cca_dune_mng)
+plot(cca_dune_mng)
+RsquareAdj(cca_dune_mng, 100)
+anova(cca_dune_mng)
+
+summary(cca_dune_use)
+plot(cca_dune_use)
+RsquareAdj(cca_dune_use, 100)
+anova(cca_dune_use)
+
+summary(cca_dune_man)
+plot(cca_dune_man)
+RsquareAdj(cca_dune_man, 100)
+anova(cca_dune_man)
+
+cca_dune_env <- cca(dune ~ A1 + Moisture + Management + Use + Manure, data=dune.env)
+plot(cca_dune_env)
+RsquareAdj(cca_dune_env, 100)
+anova(cca_dune_env)
+
+
+
+```
+2. Answer:
+- Dune_use is not significant
+- All others appear to be significant
+
+
+
+3. Do your two analyses agree with one another or complement one another or do these two analyses seem to be suggesting different take home messages? Which analysis do you find to be more useful?
+
+3. Answer:
+- Moisture was both significant in the intial NMDS plot, cca plot, and anova. In addition, in all plots and models dune_use was not significant either. To sum up, all different methods for interpreting the data appear to be agreeing with each other. 
+- I found the anova to be more useful as it was easier to interpret and provided values for the significance.  
